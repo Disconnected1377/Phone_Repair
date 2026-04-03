@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  phoneNumber   String    @unique
+  passwordHash  String
+  role          String    @default("CUSTOMER") // CUSTOMER or ADMIN
+  bookings      Booking[]
+  createdAt     DateTime  @default(now())
+}
+
+model Brand {
+  id     String  @id @default(uuid())
+  name   String  @unique
+  models Model[]
+}
+
+model Model {
+  id         String          @id @default(uuid())
+  name       String
+  brandId    String
+  brand      Brand           @relation(fields: [brandId], references: [id])
+  services   RepairService[]
+  bookings   Booking[]
+}
+
+model RepairService {
+  id              String           @id @default(uuid())
+  modelId         String
+  model           Model            @relation(fields: [modelId], references: [id])
+  type            String           // e.g., "Screen Repair", "Battery"
+  description     String
+  price           Float
+  partPrice       Float            // Base cost for the part
+  estimatedTime   String?          // e.g., "2 hours", "1 day"
+  bookingServices BookingService[]
+}
+
+model Booking {
+  id                   String           @id @default(uuid())
+  customerId           String
+  customer             User             @relation(fields: [customerId], references: [id])
+  modelId              String
+  model                Model            @relation(fields: [modelId], references: [id])
+  totalAmount          Float
+  paymentMethod        String           // "OFFLINE" or "ONLINE"
+  paymentScreenshotUrl String?          // For Online QR payments
+  paymentStatus        String           @default("PENDING") // PENDING, VERIFIED, REJECTED
+  bookingStatus        String           @default("PENDING") // pending approval, approved, disapproved
+  repairStatus         String           @default("PENDING") // PENDING, REPAIRING, REPAIRED, UNREPAIRED
+  contactAddress       String           // The delivery/shop address
+  deliveryMethod       String           // "DROP_OFF" or "PARCEL"
+  services             BookingService[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+}
+
+model BookingService {
+  id              String        @id @default(uuid())
+  bookingId       String
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+  repairServiceId String
+  repairService   RepairService @relation(fields: [repairServiceId], references: [id])
+  priceApplied    Float
+}
+
+model SiteSettings {
+  id               String   @id @default("global")
+  paymentQRCodeUrl String?
+  upiId            String?
+  upiName          String?
+  updatedAt        DateTime @updatedAt
+}
